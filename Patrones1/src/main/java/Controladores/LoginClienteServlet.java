@@ -23,14 +23,14 @@ public class LoginClienteServlet extends HttpServlet {
         Cliente cliente = facade.loginCliente(dni, password);
 
         if (cliente != null) {
-            // LOGIN ÉXITO: Guardamos en sesión
+            // LOGIN ÉXITO
             HttpSession session = request.getSession();
             session.setAttribute("cliente", cliente); 
             
-            // Redirigimos al Home del Cliente (Servlet que carga el saldo)
+            // Redirigimos al Home del Cliente
             response.sendRedirect("HomeClienteServlet"); 
         } else {
-            // LOGIN FALLO: Volvemos al JSP con error
+            // LOGIN FALLO
             response.sendRedirect("login_cliente.jsp?error=true");
         }
     }

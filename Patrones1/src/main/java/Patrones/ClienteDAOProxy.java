@@ -1,7 +1,7 @@
 package Patrones;
 
 import Dao.ClienteDAO;
-import Dao.IClienteDAO; // <--- IMPORTANTE
+import Dao.IClienteDAO; 
 import Modelo.Cliente;
 import Modelo.Cuota;
 import java.sql.Connection;
@@ -9,10 +9,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
-// 1. CORRECCIÓN: Agregar "implements IClienteDAO"
+// 1. Agregar "implements IClienteDAO
 public class ClienteDAOProxy implements IClienteDAO {
 
-    // 2. CORRECCIÓN: Le ponemos "daoReal" para que coincida con lo de abajo
+    // 2. Le ponemos "daoReal" para que coincida con lo de abajo
     private ClienteDAO daoReal = new ClienteDAO();
 
     @Override
@@ -22,7 +22,6 @@ public class ClienteDAOProxy implements IClienteDAO {
         }
         return daoReal.insertar(c);
     }
-// Archivo: Patrones/ClienteDAOProxy.java
 
 @Override
 public boolean pagarCuota(int idCliente, int idCuota, double monto) {
@@ -35,11 +34,10 @@ public boolean pagarCuota(int idCliente, int idCuota, double monto) {
 
         if (dni == null || password == null) return null;
 
-        // Aquí usamos la variable "daoReal" que definimos arriba
+       
         return daoReal.login(dni, password);
     }
 
-    // --- MÉTODOS OBLIGATORIOS QUE TE FALTAN (Porque están en la Interfaz) ---
 
     @Override
     public double obtenerSaldo(int idCliente) {

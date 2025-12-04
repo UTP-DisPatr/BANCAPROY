@@ -11,7 +11,7 @@ public class ConexionBD {
     private static final String USER = "root";
     private static final String PASS = "";
 
-    private ConexionBD() {} // Constructor privado
+    private ConexionBD() {} 
 
 public static Connection getConexion() throws SQLException {
     if (conexion == null || conexion.isClosed()) {

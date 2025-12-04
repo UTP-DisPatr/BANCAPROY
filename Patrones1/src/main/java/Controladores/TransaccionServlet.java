@@ -15,7 +15,6 @@ public class TransaccionServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        // Redirige al formulario JSP (TransaccionSimple.jsp)
         request.getRequestDispatcher("transaccion_simple.jsp").forward(request, response);
     }
     
@@ -31,7 +30,7 @@ public class TransaccionServlet extends HttpServlet {
             return;
         }
 
-        String tipoAccion = request.getParameter("accion"); // DEPOSITO o RETIRO
+        String tipoAccion = request.getParameter("accion"); 
         String montoStr = request.getParameter("monto");
         double monto = 0;
         
@@ -46,14 +45,12 @@ public class TransaccionServlet extends HttpServlet {
             boolean exito = facade.realizarTransaccion(cliente.getId_Cliente(), monto, tipoAccion);
             
             if (exito) {
-                // Actualizar saldo en sesión
                 double nuevoSaldo = facade.consultarSaldo(cliente.getId_Cliente());
                 cliente.setSaldo(nuevoSaldo);
                 session.setAttribute("cliente", cliente);
                 
                 response.sendRedirect("HomeClienteServlet?msg=transaccion_ok");
             } else {
-                // Falló (Retiro sin saldo)
                 response.sendRedirect("TransaccionServlet?tipo=" + tipoAccion + "&error=saldo_insuficiente");
             }
             

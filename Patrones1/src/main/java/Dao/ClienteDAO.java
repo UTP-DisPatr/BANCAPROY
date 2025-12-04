@@ -2,14 +2,13 @@ package Dao;
 
 import Modelo.Cliente;
 import Modelo.Bloque;
-import Modelo.Cuota; // <--- IMPORTANTE: Agregamos esto para las listas de pagos
+import Modelo.Cuota; 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import Patrones.ConexionBD;
 import Patrones.Observador;
 
-// Asegúrate de que implemente la interfaz si la estás usando en el Facade/Proxy
 public class ClienteDAO implements IClienteDAO { 
 
     Connection con;
@@ -17,13 +16,11 @@ public class ClienteDAO implements IClienteDAO {
     ResultSet rs;
     private List<Observador> observadores = new ArrayList<>();
 
-    // ---------------------------------------------------
     // MÉTODO 1: INSERTAR (CON BLOCKCHAIN Y OBSERVER)
-    // ---------------------------------------------------
-    @Override // Si usas la interfaz
+    @Override
     public boolean insertar(Cliente c) {
         String sql = "INSERT INTO cliente (dni, nombre, apellido, email, telefono, password, saldo) "
-                   + "VALUES (?, ?, ?, ?, ?, ?, ?)"; // Agregué SALDO al insert por si acaso (default 0)
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?)"; 
 
         try {
             con = ConexionBD.getConexion();
@@ -35,14 +32,14 @@ public class ClienteDAO implements IClienteDAO {
             ps.setString(4, c.getEmail());
             ps.setString(5, c.getTelefono());
             ps.setString(6, c.getPassword());
-            ps.setDouble(7, 0.00); // Saldo inicial 0
+            ps.setDouble(7, 0.00); 
 
             boolean insertado = ps.executeUpdate() > 0;
 
             if (insertado) {
-                notificar(); // patrón Observer
+                notificar(); 
 
-                // ===== BLOCKCHAIN AQUÍ =====
+                // BLOCKCHAIN
                 BlockchainDAO bcDAO = new BlockchainDAO();
                 String hashAnterior = bcDAO.obtenerUltimoHash();
 
@@ -66,19 +63,16 @@ public class ClienteDAO implements IClienteDAO {
         }
     }
 
-    // ---------------------------------------------------
-    // MÉTODO 2: LOGIN (Recuperado de pasos anteriores)
-    // ---------------------------------------------------
+    // MÉTODO 2: LOGIN 
 @Override
-    public Cliente login(String dni, String password) { // Recibe DNI
+    public Cliente login(String dni, String password) { 
         Cliente c = null;
-        // SQL CORREGIDO: WHERE dni = ?
         String sql = "SELECT * FROM cliente WHERE dni = ? AND password = ?";
 
         try (java.sql.Connection con = Patrones.ConexionBD.getConexion();
              java.sql.PreparedStatement ps = con.prepareStatement(sql)) {
 
-            ps.setString(1, dni); // Insertamos el DNI
+            ps.setString(1, dni); 
             ps.setString(2, password);
 
             try (java.sql.ResultSet rs = ps.executeQuery()) {
@@ -99,9 +93,7 @@ public class ClienteDAO implements IClienteDAO {
         return c;
     }
 
-    // ---------------------------------------------------
     // MÉTODO 3: LISTAR TODOS
-    // ---------------------------------------------------
     public List<Cliente> listar() {
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT * FROM cliente";
@@ -129,9 +121,6 @@ public class ClienteDAO implements IClienteDAO {
         return lista;
     }
 
-    // ====================================================================
-    //  NUEVOS MÉTODOS PARA EL HOME BANKING (PASO 3 INTEGRADO)
-    // ====================================================================
 
     // 1. Obtener Saldo Actual
     public double obtenerSaldo(int idCliente) {
@@ -153,15 +142,11 @@ public class ClienteDAO implements IClienteDAO {
         return saldo;
     }
 
-    // 2. Listar Cuotas Pendientes (JOIN: Cliente -> Solicitud -> Credito -> Cuota)
-// EN ClienteDAO.java
-// Busca este método y REEMPLÁZALO COMPLETO:
-// Archivo: src/main/java/Dao/ClienteDAO.java
+    // 2. Listar Cuotas Pendientes 
 
 public List<Cuota> listarCuotasPendientes(int idCliente) {
     List<Cuota> lista = new ArrayList<>();
     
-    // CORRECCIÓN FINAL: JOIN usando id_solicitud en ambas tablas
     String sql = "SELECT c.id_cuota, c.numero_cuota, c.monto_cuota, c.fecha_vencimiento, c.estado " +
                  "FROM cuotas c " +
                  "INNER JOIN solicitudes_credito s ON c.id_solicitud = s.id_solicitud " + 
@@ -175,8 +160,7 @@ public List<Cuota> listarCuotasPendientes(int idCliente) {
         try (ResultSet rs = ps.executeQuery()) {
             while(rs.next()){
                 Cuota cuota = new Cuota();
-                // OJO: Si tu tabla 'cuotas' no tiene columna 'id_cuota', cambia esto por 'id_solicitud' o lo que uses como PK
-                // Si la primera columna de tu imagen era id_cuota, déjalo así.
+                
                 cuota.setIdCuota(rs.getInt("id_cuota")); 
                 
                 cuota.setNumeroCuota(rs.getInt("numero_cuota"));
@@ -193,9 +177,7 @@ public List<Cuota> listarCuotasPendientes(int idCliente) {
     }
     return lista;
 }
-    // ====================================================================
     //  Logica para pagar la cuota de deuda
-    // ====================================================================
     @Override
     public boolean pagarCuota(int idCliente, int idCuota, double monto) {
     boolean exito = false;
@@ -209,7 +191,7 @@ public List<Cuota> listarCuotasPendientes(int idCliente) {
     Connection con = null;
     try {
         con = ConexionBD.getConexion();
-        con.setAutoCommit(false); // INICIO TRANSACCIÓN
+        con.setAutoCommit(false); 
 
         // Paso 1: Restar Saldo
         try (PreparedStatement ps1 = con.prepareStatement(sqlDescuento)) {
@@ -224,27 +206,25 @@ public List<Cuota> listarCuotasPendientes(int idCliente) {
             ps2.executeUpdate();
         }
 
-        con.commit(); // CONFIRMAR TRANSACCIÓN
+        con.commit(); 
         exito = true;
         
     } catch (Exception e) {
-        try { if(con!=null) con.rollback(); } catch(SQLException ex){} // Deshacer si falla
+        try { if(con!=null) con.rollback(); } catch(SQLException ex){} 
         System.out.println("Error al pagar: " + e.getMessage());
     } finally {
         try { if(con!=null) con.setAutoCommit(true); } catch(SQLException ex){}
     }
     return exito;
 }
-    // Archivo: Dao/ClienteDAO.java
 
-    // Agrega este método, idealmente debajo de obtenerSaldo
     public boolean actualizarSaldo(int idCliente, double monto, String tipo) {
         String sql;
 
         // 1. Lógica de Retiro (Verificación de Saldo)
         if ("RETIRO".equals(tipo)) {
-            double saldoActual = obtenerSaldo(idCliente); // Usamos el método existente
-            if (saldoActual < monto) return false; // Saldo insuficiente
+            double saldoActual = obtenerSaldo(idCliente); 
+            if (saldoActual < monto) return false; 
             sql = "UPDATE cliente SET saldo = saldo - ? WHERE id_cliente = ?";
         } 
         // 2. Lógica de Depósito (Suma)

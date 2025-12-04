@@ -7,11 +7,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-// Esta será la URL que llamaremos desde el HTML
 @WebServlet("/verImagen") 
 public class ImagenServlet extends HttpServlet {
 
-    // Define la carpeta base donde guardas las fotos (según tu BD)
     private static final String RUTA_BASE = "C:/banco_uploads/";
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

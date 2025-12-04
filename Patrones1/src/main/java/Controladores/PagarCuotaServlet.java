@@ -30,15 +30,13 @@ public class PagarCuotaServlet extends HttpServlet {
                 boolean pagoExitoso = facade.pagarCuota(cliente.getId_Cliente(), idCuota, monto);
 
                 if (pagoExitoso) {
-                    // 4. Si pagó, actualizamos el saldo en la sesión para que se vea reflejado YA
+                    // 4. Si pagó, actualizamos el saldo en la sesión para que se vea reflejado 
                     double nuevoSaldo = facade.consultarSaldo(cliente.getId_Cliente());
                     cliente.setSaldo(nuevoSaldo);
-                    session.setAttribute("cliente", cliente); // Guardamos el cliente actualizado
+                    session.setAttribute("cliente", cliente); 
                     
-                    // Redirigir con mensaje de éxito
                     response.sendRedirect("HomeClienteServlet?msg=exito_pago");
                 } else {
-                    // Redirigir con error (seguramente saldo insuficiente)
                     response.sendRedirect("HomeClienteServlet?error=saldo_insuficiente");
                 }
 

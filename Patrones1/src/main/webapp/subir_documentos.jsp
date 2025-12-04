@@ -28,7 +28,7 @@
 </head>
 <body>
     <div class="container">
-        <h2>📂 Documentación Requerida</h2>
+        <h2> Documentación Requerida</h2>
         
         <div class="info">
             <p><strong>Solicitud #<%= request.getAttribute("idSolicitud") %> Iniciada</strong></p>

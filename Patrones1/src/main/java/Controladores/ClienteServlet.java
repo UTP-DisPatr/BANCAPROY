@@ -7,16 +7,14 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import Patrones.ClienteFacade;
 
-// ...imports...
 
-@WebServlet("/ClienteServlet") // Asegúrate que esta ruta coincide con el form action
+@WebServlet("/ClienteServlet")
 public class ClienteServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // 1. Recibir datos
         String dni = request.getParameter("dni");
         String nombre = request.getParameter("nombre");
         String apellido = request.getParameter("apellido");

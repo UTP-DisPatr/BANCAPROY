@@ -13,10 +13,10 @@ public class Cliente {
     private String password;
     private double saldo;
 
-    // ✅ Constructor vacío (OBLIGATORIO)
+    // Constructor vacío 
     public Cliente() {}
 
-    // ✅ Constructor completo
+    // Constructor completo
     public Cliente(int id_cliente, String dni, String nombre, String apellido,
                    String email, String telefono, String password) {
         this.id_cliente = id_cliente;

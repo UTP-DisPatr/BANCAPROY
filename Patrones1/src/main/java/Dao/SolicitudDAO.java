@@ -13,12 +13,10 @@ public class SolicitudDAO {
         public List<Solicitud> listarPendientes() {
         List<Solicitud> lista = new ArrayList<>();
         
-        // ERROR ANTES: "FROM solicitud_credito s " (Faltaba la 'es')
-        // CORRECCIÓN: "FROM solicitudes_credito s "
         
         String sql = "SELECT s.id_solicitud, s.id_cliente, s.monto, s.tipo_credito, " +
                      "s.estado, s.fecha_solicitud, c.nombre AS nombre_cliente " +
-                     "FROM solicitudes_credito s " +  // <--- AQUÍ ESTABA EL ERROR
+                     "FROM solicitudes_credito s " +  
                      "INNER JOIN cliente c ON s.id_cliente = c.id_cliente " + 
                      "WHERE s.estado = 'PENDIENTE'";
 
@@ -28,7 +26,6 @@ public class SolicitudDAO {
 
             while (rs.next()) {
                 Solicitud s = new Solicitud();
-                // Mapeo exacto de la tabla
                 s.setIdSolicitud(rs.getInt("id_solicitud"));
                 s.setIdCliente(rs.getInt("id_cliente"));
                 s.setMonto(rs.getDouble("monto"));
@@ -36,7 +33,6 @@ public class SolicitudDAO {
                 s.setEstado(rs.getString("estado"));
                 s.setFechaSolicitud(rs.getDate("fecha_solicitud"));
                 
-                // El dato extra del JOIN
                 s.setNombreCliente(rs.getString("nombre_cliente"));
                 
                 lista.add(s);
@@ -47,7 +43,7 @@ public class SolicitudDAO {
         return lista;
     }
     
-    // --- NUEVO: Método para que el Cliente registre la solicitud ---
+    // Método para que el Cliente registre la solicitud 
     public boolean registrarSolicitud(Solicitud s) {
         String sql = "INSERT INTO solicitudes_credito (id_cliente, monto, tipo_credito, estado, fecha_solicitud) VALUES (?, ?, ?, ?, ?)";
         
@@ -68,11 +64,9 @@ public class SolicitudDAO {
         }
     }
 
-// Método para buscar una solicitud específica (usado al Evaluar)
     public Solicitud obtenerPorId(int id) {
         Solicitud s = null;
         
-        // CORRECCIÓN: Usamos INNER JOIN para traer el nombre del cliente
         String sql = "SELECT s.*, c.nombre, c.apellido " +
                      "FROM solicitudes_credito s " +
                      "INNER JOIN cliente c ON s.id_cliente = c.id_cliente " +
@@ -90,9 +84,8 @@ public class SolicitudDAO {
                     s.setMonto(rs.getDouble("monto"));
                     s.setTipoCredito(rs.getString("tipo_credito"));
                     s.setFechaSolicitud(rs.getDate("fecha_solicitud"));
-                    s.setEstado(rs.getString("estado")); // Importante para el State Pattern
+                    s.setEstado(rs.getString("estado")); 
                     
-                    // AQUÍ ESTÁ LA SOLUCIÓN DEL NOMBRE NULL:
                     String nombreCompleto = rs.getString("nombre") + " " + rs.getString("apellido");
                     s.setNombreCliente(nombreCompleto);
                 }
@@ -103,14 +96,13 @@ public class SolicitudDAO {
         return s;
     }
 
-    // --- NUEVO: Método para guardar la Aprobación/Rechazo del Analista ---
+    //  Método para guardar la Aprobación/Rechazo del Analista 
     public boolean actualizarEstado(Solicitud s) {
         String sql = "UPDATE solicitudes_credito SET estado = ?, id_analista = ? WHERE id_solicitud = ?";
         
         try (Connection con = ConexionBD.getConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             
-            // Obtenemos el String del estado actual (APROBADO/RECHAZADO)
             ps.setString(1, s.getEstado()); 
             ps.setInt(2, s.getIdAnalista());
             ps.setInt(3, s.getIdSolicitud());
@@ -123,10 +115,9 @@ public class SolicitudDAO {
         }
     }
 
-// Método que devuelve el ID generado (INT) en lugar de boolean
 
 public int registrarSolicitudConRetorno(Modelo.Solicitud s) {
-    // CORRECCIÓN: Usamos solo las 5 columnas que SÍ existen en solicitudes_credito
+    
     String sql = "INSERT INTO solicitudes_credito (id_cliente, monto, tipo_credito, estado, fecha_solicitud) VALUES (?, ?, ?, ?, ?)";
     int idGenerado = 0;
 
@@ -136,10 +127,9 @@ public int registrarSolicitudConRetorno(Modelo.Solicitud s) {
         ps.setInt(1, s.getIdCliente());
         ps.setDouble(2, s.getMonto());
         ps.setString(3, s.getTipoCredito());
-        ps.setString(4, s.getEstadoString()); // Usar getEstadoString() del Patrón State
+        ps.setString(4, s.getEstadoString()); 
         ps.setDate(5, s.getFechaSolicitud());
         
-        // ¡QUITAMOS ps.setInt(6, s.getCuotas()); !
 
         int filas = ps.executeUpdate();
         
@@ -170,12 +160,11 @@ public boolean aprobarCredito(int idSolicitud, int idCliente, double monto, int 
     String sqlSaldo = "UPDATE cliente SET saldo = saldo + ? WHERE id_cliente = ?";  
     
     // 3. Crear Cuotas
-    // CORRECCIÓN FINAL: Usamos 'id_solicitud' porque así está en TU TABLA cuotas
     String sqlCuota = "INSERT INTO cuotas (id_solicitud, numero_cuota, monto_cuota, fecha_vencimiento, estado) VALUES (?, ?, ?, ?, 'PENDIENTE')";
 
     try {
         con = Patrones.ConexionBD.getConexion();
-        con.setAutoCommit(false); // Inicio Transacción
+        con.setAutoCommit(false); 
 
         // A. Cambiar Estado
         try (java.sql.PreparedStatement ps1 = con.prepareStatement(sqlEstado)) {
@@ -196,13 +185,13 @@ public boolean aprobarCredito(int idSolicitud, int idCliente, double monto, int 
         
         try (java.sql.PreparedStatement ps4 = con.prepareStatement(sqlCuota)) {
             for (int i = 1; i <= numCuotas; i++) {
-                // AQUÍ LA CLAVE: Insertamos el idSolicitud en la columna id_solicitud
+                
                 ps4.setInt(1, idSolicitud); 
                 
                 ps4.setInt(2, i);
                 ps4.setDouble(3, montoCuota);
                 
-                // Fecha: 1 mes después por cada cuota
+             
                 java.util.Calendar cal = java.util.Calendar.getInstance();
                 cal.add(java.util.Calendar.MONTH, i);
                 ps4.setDate(4, new java.sql.Date(cal.getTimeInMillis()));
@@ -236,7 +225,7 @@ public boolean aprobarCredito(int idSolicitud, int idCliente, double monto, int 
         } catch(Exception e) {}
         return docs;
     }
-    // --- NUEVO: Registrar documento en la BD ---
+  
     public void registrarDocumento(int idSolicitud, String tipo, String nombreArchivo) {
         String sql = "INSERT INTO documentos_solicitud (id_solicitud, tipo_documento, nombre_archivo, ruta_archivo) VALUES (?, ?, ?, ?)";
         
@@ -246,7 +235,7 @@ public boolean aprobarCredito(int idSolicitud, int idCliente, double monto, int 
             ps.setInt(1, idSolicitud);
             ps.setString(2, tipo);
             ps.setString(3, nombreArchivo);
-            ps.setString(4, "C:/banco_uploads/" + nombreArchivo); // Ruta referencial
+            ps.setString(4, "C:/banco_uploads/" + nombreArchivo); 
             
             ps.executeUpdate();
             

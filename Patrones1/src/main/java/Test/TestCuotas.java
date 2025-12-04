@@ -14,7 +14,6 @@ import java.util.List;
 
 public class TestCuotas {
     public static void main(String[] args) {
-        // 1. Pon aquí manualmente el ID del cliente que tiene la deuda en tu BD
         int ID_CLIENTE_A_PROBAR = 2; 
 
         System.out.println("=== INICIO TEST DE CUOTAS ===");

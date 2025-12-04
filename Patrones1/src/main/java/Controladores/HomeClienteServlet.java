@@ -9,7 +9,6 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 
-// OJO: La URL debe ser EXACTAMENTE esta para que coincida con el error
 @WebServlet(name = "HomeClienteServlet", urlPatterns = {"/HomeClienteServlet"})
 public class HomeClienteServlet extends HttpServlet {
 
@@ -32,7 +31,7 @@ public class HomeClienteServlet extends HttpServlet {
         double saldo = facade.consultarSaldo(cliente.getId_Cliente());
         List<Cuota> listaCuotas = facade.obtenerCuotasPendientes(cliente.getId_Cliente());
 
-        // --- AGREGAR ESTO: Capturar mensajes de la URL ---
+       
         String msg = request.getParameter("msg");
         String error = request.getParameter("error");
 

@@ -6,7 +6,6 @@ import Modelo.Analista;
 
 public class AnalistaProxy implements IAnalistaDAO {
 
-    // El Proxy tiene una instancia del objeto REAL
     private AnalistaDAO daoReal;
 
     public AnalistaProxy() {

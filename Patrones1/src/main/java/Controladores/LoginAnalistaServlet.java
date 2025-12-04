@@ -24,11 +24,9 @@ public class LoginAnalistaServlet extends HttpServlet {
         Analista analista = facade.iniciarSesion(usuario, clave);
 
         if (analista != null) {
-            // LOGIN EXITOSO: Guardamos al analista en la SESIÓN
             HttpSession session = request.getSession();
             session.setAttribute("analistaLogueado", analista);
             
-            // Redirigimos a la bandeja de entrada
             response.sendRedirect("bandeja_entrada.jsp");
         } else {
             // LOGIN FALLIDO

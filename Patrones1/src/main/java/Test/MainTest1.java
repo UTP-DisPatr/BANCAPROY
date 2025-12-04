@@ -5,7 +5,7 @@ import Modelo.SimuladorCredito;
 import Modelo.Solicitud;
 import Patrones.ConexionBD;
 import java.sql.Connection;
-import java.util.List; // <--- IMPORTANTE: Este import faltaba
+import java.util.List; 
 
 public class MainTest1 {
 
@@ -19,12 +19,12 @@ public class MainTest1 {
         try {
             Connection con = ConexionBD.getConexion();
             if(con != null && !con.isClosed()) {
-                System.out.println("✅ Conexión EXITOSA.");
+                System.out.println("Conexión EXITOSA.");
             } else {
-                System.out.println("❌ ERROR: No hay conexión.");
+                System.out.println("ERROR: No hay conexión.");
             }
         } catch (Exception e) {
-            System.out.println("❌ Excepción en conexión: " + e.getMessage());
+            System.out.println(" Excepción en conexión: " + e.getMessage());
         }
         System.out.println();
 
@@ -39,8 +39,8 @@ public class MainTest1 {
         System.out.println("Monto: " + monto + " | Meses: " + meses + " | Tasa: " + tasa + "%");
         System.out.println("Cuota Calculada: " + cuota);
         
-        if (cuota > 0) System.out.println("✅ Cálculo lógico.");
-        else System.out.println("❌ Error en cálculo.");
+        if (cuota > 0) System.out.println(" Cálculo lógico.");
+        else System.out.println(" Error en cálculo.");
         System.out.println();
 
         // 3. PRUEBA DEL PATRÓN STATE
@@ -55,9 +55,9 @@ public class MainTest1 {
         System.out.println("Intentando aprobar de nuevo (debe fallar)...");
         try {
             solTest.aprobar();
-            System.out.println("❌ ERROR: El patrón NO protegió el estado.");
+            System.out.println(" ERROR: El patrón NO protegió el estado.");
         } catch (IllegalStateException e) {
-            System.out.println("✅ ÉXITO: El patrón bloqueó la acción: " + e.getMessage());
+            System.out.println(" ÉXITO: El patrón bloqueó la acción: " + e.getMessage());
         }
         System.out.println();
 
@@ -66,29 +66,28 @@ public class MainTest1 {
         SolicitudDAO dao = new SolicitudDAO();
         
         Solicitud nuevaSol = new Solicitud();
-        nuevaSol.setIdCliente(1); // ASUME QUE EXISTE CLIENTE ID 1
+        nuevaSol.setIdCliente(1); 
         nuevaSol.setMonto(5000);
         nuevaSol.setTipoCredito("PERSONAL");
         nuevaSol.setFechaSolicitud(new java.sql.Date(System.currentTimeMillis()));
         
         if (dao.registrarSolicitud(nuevaSol)) {
-            System.out.println("✅ Solicitud insertada en BD correctamente.");
+            System.out.println("Solicitud insertada en BD correctamente.");
         } else {
-            System.out.println("❌ Falló el insert en BD (¿Existe el cliente 1?).");
+            System.out.println("Falló el insert en BD (¿Existe el cliente 1?).");
             return; 
         }
 
-        // --- CORRECCIÓN AQUÍ: Usamos List<Solicitud> explícito ---
         List<Solicitud> pendientes = dao.listarPendientes();
         
         if (pendientes.isEmpty()) {
-            System.out.println("❌ No se encontraron pendientes para probar.");
+            System.out.println(" No se encontraron pendientes para probar.");
         } else {
             Solicitud recuperada = pendientes.get(pendientes.size() - 1); 
             System.out.println("Solicitud recuperada ID: " + recuperada.getIdSolicitud());
             System.out.println("Estado recuperado de BD: " + recuperada.getEstadoString());
 
-            recuperada.setIdAnalista(1); // ASUME QUE EXISTE ANALISTA ID 1
+            recuperada.setIdAnalista(1); 
             recuperada.rechazar(); 
             
             if (dao.actualizarEstado(recuperada)) {
