@@ -10,14 +10,16 @@ import java.util.List;
 
 public class SolicitudDAO {
 
-    public List<Solicitud> listarPendientes() {
+        public List<Solicitud> listarPendientes() {
         List<Solicitud> lista = new ArrayList<>();
         
-        // SQL MEJORADO: Trae todo + el nombre del cliente
+        // ERROR ANTES: "FROM solicitud_credito s " (Faltaba la 'es')
+        // CORRECCIÓN: "FROM solicitudes_credito s "
+        
         String sql = "SELECT s.id_solicitud, s.id_cliente, s.monto, s.tipo_credito, " +
                      "s.estado, s.fecha_solicitud, c.nombre AS nombre_cliente " +
-                     "FROM solicitud_credito s " +
-                     "INNER JOIN cliente c ON s.id_cliente = c.id_cliente " + // OJO: singular 'cliente'
+                     "FROM solicitudes_credito s " +  // <--- AQUÍ ESTABA EL ERROR
+                     "INNER JOIN cliente c ON s.id_cliente = c.id_cliente " + 
                      "WHERE s.estado = 'PENDIENTE'";
 
         try (Connection con = ConexionBD.getConexion();
@@ -55,7 +57,6 @@ public class SolicitudDAO {
             ps.setInt(1, s.getIdCliente());
             ps.setDouble(2, s.getMonto());
             ps.setString(3, s.getTipoCredito());
-            // Aquí usamos el getter del Patrón State (obtiene "PENDIENTE")
             ps.setString(4, s.getEstado()); 
             ps.setDate(5, s.getFechaSolicitud());
             
@@ -67,16 +68,21 @@ public class SolicitudDAO {
         }
     }
 
-    // --- NUEVO: Método auxiliar para buscar una solicitud por ID ---
+// Método para buscar una solicitud específica (usado al Evaluar)
     public Solicitud obtenerPorId(int id) {
         Solicitud s = null;
-        String sql = "SELECT * FROM solicitudes_credito WHERE id_solicitud = ?";
         
-        try (Connection con = ConexionBD.getConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        // CORRECCIÓN: Usamos INNER JOIN para traer el nombre del cliente
+        String sql = "SELECT s.*, c.nombre, c.apellido " +
+                     "FROM solicitudes_credito s " +
+                     "INNER JOIN cliente c ON s.id_cliente = c.id_cliente " +
+                     "WHERE s.id_solicitud = ?";
+        
+        try (java.sql.Connection con = Patrones.ConexionBD.getConexion();
+             java.sql.PreparedStatement ps = con.prepareStatement(sql)) {
             
             ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     s = new Solicitud();
                     s.setIdSolicitud(rs.getInt("id_solicitud"));
@@ -84,17 +90,15 @@ public class SolicitudDAO {
                     s.setMonto(rs.getDouble("monto"));
                     s.setTipoCredito(rs.getString("tipo_credito"));
                     s.setFechaSolicitud(rs.getDate("fecha_solicitud"));
+                    s.setEstado(rs.getString("estado")); // Importante para el State Pattern
                     
-                    // IMPORTANTE: Al cargar desde BD, seteamos el estado
-                    // Esto activará el switch en tu Modelo para crear el Objeto State correcto
-                    s.setEstado(rs.getString("estado"));
-                    
-                    // Si ya tiene analista asignado
-                    s.setIdAnalista(rs.getInt("id_analista"));
+                    // AQUÍ ESTÁ LA SOLUCIÓN DEL NOMBRE NULL:
+                    String nombreCompleto = rs.getString("nombre") + " " + rs.getString("apellido");
+                    s.setNombreCliente(nombreCompleto);
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error obteniendo solicitud: " + e.getMessage());
+            System.out.println("Error obtenerPorId: " + e.getMessage());
         }
         return s;
     }
@@ -116,6 +120,142 @@ public class SolicitudDAO {
         } catch (Exception e) {
             System.out.println("Error actualizando estado: " + e.getMessage());
             return false;
+        }
+    }
+
+// Método que devuelve el ID generado (INT) en lugar de boolean
+    public int registrarSolicitudConRetorno(Solicitud s) {
+        String sql = "INSERT INTO solicitudes_credito (id_cliente, monto, tipo_credito, estado, fecha_solicitud) VALUES (?, ?, ?, ?, ?)";
+        int idGenerado = 0;
+
+        try (java.sql.Connection con = Patrones.ConexionBD.getConexion();
+             // IMPORTANTE: RETURN_GENERATED_KEYS permite recuperar el ID autoincrementable
+             java.sql.PreparedStatement ps = con.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setInt(1, s.getIdCliente());
+            ps.setDouble(2, s.getMonto());
+            ps.setString(3, s.getTipoCredito());
+            ps.setString(4, s.getEstado());
+            ps.setDate(5, s.getFechaSolicitud());
+
+            int filas = ps.executeUpdate();
+            
+            if (filas > 0) {
+                try (java.sql.ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        idGenerado = rs.getInt(1); // Aquí recuperamos el ID (ej: 5)
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error registrarSolicitudConRetorno: " + e.getMessage());
+        }
+        return idGenerado;
+    }
+    // --- MÉTODO MAESTRO: APROBAR CRÉDITO + DESEMBOLSO + GENERAR CUOTAS ---
+// --- MÉTODO MAESTRO: APROBAR CRÉDITO + DESEMBOLSAR + GENERAR CUOTAS ---
+    public boolean aprobarCredito(int idSolicitud, int idCliente, double monto, int numCuotas, int idAnalista) {
+        boolean exito = false;
+        java.sql.Connection con = null;
+        
+        // 1. Actualizar estado de la solicitud
+        String sqlEstado = "UPDATE solicitudes_credito SET estado = 'APROBADO', id_analista = ? WHERE id_solicitud = ?";
+        // 2. Sumar dinero al saldo del cliente
+        String sqlSaldo  = "UPDATE cliente SET saldo = saldo + ? WHERE id_cliente = ?";
+        // 3. Crear el Crédito (Cabecera)
+        String sqlCredito = "INSERT INTO creditos (id_solicitud, monto_aprobado, fecha_aprobacion, estado) VALUES (?, ?, CURDATE(), 'ACTIVO')";
+        // 4. Crear las Cuotas
+        String sqlCuota  = "INSERT INTO cuotas (id_credito, numero_cuota, monto_cuota, fecha_vencimiento, estado) VALUES (?, ?, ?, ?, 'PENDIENTE')";
+
+        try {
+            con = Patrones.ConexionBD.getConexion();
+            con.setAutoCommit(false); // INICIO TRANSACCIÓN (Todo o nada)
+
+            // A. Cambiar Estado
+            try (java.sql.PreparedStatement ps1 = con.prepareStatement(sqlEstado)) {
+                ps1.setInt(1, idAnalista);
+                ps1.setInt(2, idSolicitud);
+                ps1.executeUpdate();
+            }
+
+            // B. Desembolsar Dinero
+            try (java.sql.PreparedStatement ps2 = con.prepareStatement(sqlSaldo)) {
+                ps2.setDouble(1, monto);
+                ps2.setInt(2, idCliente);
+                ps2.executeUpdate();
+            }
+
+            // C. Insertar Crédito y obtener su ID
+            int idCreditoGenerado = 0;
+            try (java.sql.PreparedStatement ps3 = con.prepareStatement(sqlCredito, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                ps3.setInt(1, idSolicitud);
+                ps3.setDouble(2, monto);
+                ps3.executeUpdate();
+                
+                // CORRECCIÓN: Usamos el tipo explícito para evitar error 'var'
+                java.sql.ResultSet rs = ps3.getGeneratedKeys(); 
+                if(rs.next()) idCreditoGenerado = rs.getInt(1);
+            }
+
+            // D. Generar Cuotas (Loop)
+            // Calculamos cuota simple (Monto / Meses). *Aquí podrías usar tu SimuladorCredito para incluir interés*
+            double montoCuota = Math.round((monto / numCuotas) * 100.0) / 100.0;
+            
+            try (java.sql.PreparedStatement ps4 = con.prepareStatement(sqlCuota)) {
+                for (int i = 1; i <= numCuotas; i++) {
+                    ps4.setInt(1, idCreditoGenerado);
+                    ps4.setInt(2, i); // Numero cuota
+                    ps4.setDouble(3, montoCuota);
+                    
+                    // Fecha vencimiento: Hoy + 30 días * i
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    cal.add(java.util.Calendar.MONTH, i);
+                    ps4.setDate(4, new java.sql.Date(cal.getTimeInMillis()));
+                    
+                    ps4.executeUpdate(); // Insertar cada cuota
+                }
+            }
+
+            con.commit(); // CONFIRMAR TRANSACCIÓN
+            exito = true;
+
+        } catch (Exception e) {
+            try { if(con!=null) con.rollback(); } catch(Exception ex){}
+            System.out.println("Error al aprobar: " + e.getMessage());
+        } finally {
+            try { if(con!=null) con.setAutoCommit(true); } catch(Exception ex){}
+        }
+        return exito;
+    }
+
+    // Método auxiliar para ver los nombres de archivos subidos
+    public java.util.List<String> obtenerDocumentos(int idSolicitud) {
+        java.util.List<String> docs = new java.util.ArrayList<>();
+        String sql = "SELECT nombre_archivo FROM documentos_solicitud WHERE id_solicitud = ?";
+        try (java.sql.Connection con = Patrones.ConexionBD.getConexion();
+             java.sql.PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, idSolicitud);
+            java.sql.ResultSet rs = ps.executeQuery();
+            while(rs.next()) docs.add(rs.getString("nombre_archivo"));
+        } catch(Exception e) {}
+        return docs;
+    }
+    // --- NUEVO: Registrar documento en la BD ---
+    public void registrarDocumento(int idSolicitud, String tipo, String nombreArchivo) {
+        String sql = "INSERT INTO documentos_solicitud (id_solicitud, tipo_documento, nombre_archivo, ruta_archivo) VALUES (?, ?, ?, ?)";
+        
+        try (java.sql.Connection con = Patrones.ConexionBD.getConexion();
+             java.sql.PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            ps.setInt(1, idSolicitud);
+            ps.setString(2, tipo);
+            ps.setString(3, nombreArchivo);
+            ps.setString(4, "C:/banco_uploads/" + nombreArchivo); // Ruta referencial
+            
+            ps.executeUpdate();
+            
+        } catch (Exception e) {
+            System.out.println("Error guardando documento en BD: " + e.getMessage());
         }
     }
 }

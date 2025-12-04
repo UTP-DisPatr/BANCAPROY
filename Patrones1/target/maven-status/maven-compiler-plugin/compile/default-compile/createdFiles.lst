@@ -1,3 +1,4 @@
+ProcesarSolicitudServlet.class
 Patrones\ConexionBD.class
 Dao\IAnalistaDAO.class
 Patrones\ClienteFactory.class
@@ -10,17 +11,19 @@ Patrones\Observador.class
 Dao\IClienteDAO.class
 Modelo\Cliente.class
 Modelo\Analista.class
-Test\MainTest.class
 Dao\BlockchainDAO.class
 Controladores\HomeClienteServlet.class
 Patrones\EstadoAprobado.class
 Modelo\Solicitud.class
 Controladores\ClienteServlet.class
 Controladores\LoginAnalistaServlet.class
+Controladores\SubirDocumentoServlet.class
 Patrones\ClienteFacade.class
+Controladores\PagarCuotaServlet.class
 Dao\AnalistaDAO.class
 Controladores\GestionAnalistaServlet.class
 Patrones\EstadoPendiente.class
+ImagenServlet.class
 Modelo\Cuota.class
 Dao\ClienteDAO.class
 Patrones\SistemaNotificacion.class

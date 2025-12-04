@@ -3,7 +3,7 @@ package Controladores;
 import Dao.SolicitudDAO;
 import Modelo.Cliente;
 import Modelo.Solicitud;
-import Modelo.SimuladorCredito; // Asegúrate de haber creado esta clase en el Paso 3
+import Modelo.SimuladorCredito;
 import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -22,61 +22,86 @@ public class SolicitudCreditoServlet extends HttpServlet {
         // Obtenemos la acción del botón (simular o solicitar)
         String accion = request.getParameter("accion");
         
+
         // ---------------------------------------------------------
-        // CASO 1: SIMULACIÓN DE CRÉDITO (Matemática pura)
+        // CASO 1: SIMULACIÓN DE CRÉDITO
         // ---------------------------------------------------------
         if ("simular".equals(accion)) {
             try {
+                // 1. Recibimos datos
                 double monto = Double.parseDouble(request.getParameter("monto"));
                 int cuotas = Integer.parseInt(request.getParameter("cuotas"));
-                double tasaAnual = 15.0; // Puedes traer esto de la BD si prefieres
+                
+                // NUEVO: Recibimos el tipo para saber la tasa
+                String tipo = request.getParameter("tipoCredito"); 
 
-                // Llamamos a la lógica de negocio (Backend)
+                // 2. Lógica de Negocio
                 SimuladorCredito simulador = new SimuladorCredito();
+                
+                // A. Obtenemos la tasa dinámica
+                double tasaAnual = simulador.obtenerTasaAnual(tipo); 
+                
+                // B. Calculamos la cuota con esa tasa
                 double cuotaMensual = simulador.calcularCuota(monto, cuotas, tasaAnual);
 
-                // Enviamos los resultados de vuelta al JSP para que el usuario los vea
+                // 3. Enviamos TODO de vuelta al JSP
                 request.setAttribute("res_monto", monto);
                 request.setAttribute("res_cuotas", cuotas);
+                request.setAttribute("res_tipo", tipo);        // Para que sepa qué eligió
+                request.setAttribute("res_tasa", tasaAnual);   // ¡Para mostrarle la tasa al cliente!
                 request.setAttribute("res_valor_cuota", cuotaMensual);
                 
-                // Redirigimos al mismo JSP para mostrar el resultado
-                request.getRequestDispatcher("home_cliente.jsp").forward(request, response);
+                // IMPORTANTE: Volvemos al formulario (solicitar_prestamo.jsp)
+                // NO al home, para evitar el error 500 que te salía antes.
+                request.getRequestDispatcher("solicitar_prestamo.jsp").forward(request, response);
 
-            } catch (NumberFormatException e) {
-                response.sendRedirect("home_cliente.jsp?error=datos_invalidos");
+            } catch (Exception e) {
+                response.sendRedirect("solicitar_prestamo.jsp?error=datos_invalidos");
             }
-        } 
+        }
         
         // ---------------------------------------------------------
         // CASO 2: REGISTRAR SOLICITUD (Guardar en BD)
         // ---------------------------------------------------------
+// ---------------------------------------------------------
+        // CASO 2: REGISTRAR SOLICITUD (Guardar y pedir documentos)
+        // ---------------------------------------------------------
         else if ("solicitar".equals(accion)) {
             HttpSession session = request.getSession();
-            // Asumo que tienes un "Cliente" o "clienteLogueado" en la sesión
-            // Si tu login de cliente usa otro nombre, cámbialo aquí.
-            Cliente cliente = (Cliente) session.getAttribute("clienteLogueado");
+            
+            // 1. VALIDAR SESIÓN (Usa el nombre correcto: "cliente")
+            Cliente cliente = (Cliente) session.getAttribute("cliente");
 
             if (cliente != null) {
-                Solicitud s = new Solicitud();
-                s.setIdCliente(cliente.getId_Cliente()); // Asegúrate que Cliente tenga getIdCliente()
-                s.setMonto(Double.parseDouble(request.getParameter("monto")));
-                s.setTipoCredito(request.getParameter("tipoCredito"));
-                s.setFechaSolicitud(new java.sql.Date(System.currentTimeMillis()));
-                
-                // NOTA: Al hacer 'new Solicitud()', el Patrón State
-                // automáticamente le asigna el estado "PENDIENTE" (Ver Modelo/Solicitud.java)
+                try {
+                    Solicitud s = new Solicitud();
+                    s.setIdCliente(cliente.getId_Cliente());
+                    s.setMonto(Double.parseDouble(request.getParameter("monto")));
+                    s.setTipoCredito(request.getParameter("tipoCredito"));
+                    s.setFechaSolicitud(new java.sql.Date(System.currentTimeMillis()));
+                    // El estado se pone "PENDIENTE" automático en el constructor (Patrón State)
 
-                SolicitudDAO dao = new SolicitudDAO();
-                if (dao.registrarSolicitud(s)) {
-                    response.sendRedirect("exito.jsp");
-                } else {
+                    // 2. GUARDAR EN BD Y OBTENER ID
+                    // (Llamamos al DAO directo para usar el método nuevo que devuelve int)
+                    Dao.SolicitudDAO dao = new Dao.SolicitudDAO();
+                    int idGenerado = dao.registrarSolicitudConRetorno(s);
+
+                    if (idGenerado > 0) {
+                        // 3. ÉXITO: Redirigir a Subir Documentos
+                        // Importante: El nombre del atributo debe coincidir con el JSP
+                        request.setAttribute("idSolicitud", idGenerado); 
+                        request.getRequestDispatcher("subir_documentos.jsp").forward(request, response);
+                    } else {
+                        response.sendRedirect("error.jsp");
+                    }
+                } catch (Exception e) {
+                    System.out.println("Error procesando solicitud: " + e.getMessage());
                     response.sendRedirect("error.jsp");
                 }
             } else {
-                // Si no hay sesión, mandar al login
+                // Si expiró la sesión
                 response.sendRedirect("login_cliente.jsp");
             }
         }
+        }
     }
-}

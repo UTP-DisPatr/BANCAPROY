@@ -2,14 +2,10 @@ package Controladores;
 
 import Dao.SolicitudDAO;
 import Modelo.Analista;
-import Modelo.Solicitud;
 import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.*;
 
 @WebServlet(name = "GestionAnalistaServlet", urlPatterns = {"/GestionAnalistaServlet"})
 public class GestionAnalistaServlet extends HttpServlet {
@@ -18,52 +14,39 @@ public class GestionAnalistaServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        String accion = request.getParameter("accion"); // Vendrá "aprobar" o "rechazar"
-        int idSolicitud = Integer.parseInt(request.getParameter("idSolicitud"));
-
-        // Recuperamos al analista de la sesión (tal como lo guardaste en LoginAnalistaServlet)
         HttpSession session = request.getSession();
+        
+        // 1. DEFINICIÓN DE LA VARIABLE (Aquí le ponemos el nombre que usaremos abajo)
         Analista analistaLogueado = (Analista) session.getAttribute("analistaLogueado");
 
+        // Validación de seguridad
         if (analistaLogueado == null) {
             response.sendRedirect("login_analista.jsp");
             return;
         }
 
+        String accion = request.getParameter("accion");
+        int idSolicitud = Integer.parseInt(request.getParameter("idSolicitud"));
+        int idCliente = Integer.parseInt(request.getParameter("idCliente"));
+        double monto = Double.parseDouble(request.getParameter("monto"));
+        int cuotas = Integer.parseInt(request.getParameter("cuotas"));
+
         SolicitudDAO dao = new SolicitudDAO();
-        
-        // 1. Obtenemos la solicitud de la BD
-        Solicitud sol = dao.obtenerPorId(idSolicitud);
 
-        if (sol != null) {
-            // Asignamos qué analista está trabajando
-            sol.setIdAnalista(analistaLogueado.getIdAnalista()); // Asegúrate que Analista tenga este getter
-
-            try {
-                // ==========================================
-                // AQUÍ ACTÚA EL PATRÓN STATE (Punto fuerte)
-                // ==========================================
-                // No preguntamos el estado actual. 
-                // Ejecutamos la acción y el objeto decide si es válida.
-                
-                if ("aprobar".equals(accion)) {
-                    sol.aprobar(); // Si ya estaba rechazada, esto lanzará error automáticamente
-                } else if ("rechazar".equals(accion)) {
-                    sol.rechazar();
-                }
-
-                // Si el patrón State no lanzó error, guardamos en BD
-                dao.actualizarEstado(sol);
-
-            } catch (IllegalStateException e) {
-                // El Patrón detectó una violación de flujo (ej: aprobar lo rechazado)
-                System.out.println("ERROR DE LÓGICA: " + e.getMessage());
-                // Podrías pasar este error a la sesión para mostrarlo en el JSP
-                session.setAttribute("mensajeError", e.getMessage());
+        if ("aprobar".equals(accion)) {
+            // 2. USO DE LA VARIABLE (Ahora sí coincide el nombre)
+            boolean exito = dao.aprobarCredito(idSolicitud, idCliente, monto, cuotas, analistaLogueado.getIdAnalista());
+            
+            if (exito) {
+                response.sendRedirect("bandeja_entrada.jsp?msg=aprobado");
+            } else {
+                response.sendRedirect("bandeja_entrada.jsp?error=bd");
             }
-        }
 
-        // Volvemos a la bandeja
-        response.sendRedirect("bandeja_entrada.jsp");
+        } else if ("rechazar".equals(accion)) {
+            // Para rechazar, podrías crear un método en el DAO o actualizar simple
+            // dao.rechazar(idSolicitud, analistaLogueado.getIdAnalista());
+            response.sendRedirect("bandeja_entrada.jsp?msg=rechazado");
+        }
     }
 }

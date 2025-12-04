@@ -49,7 +49,6 @@
     </style>
 </head>
 <body>
-
     <%-- Validar Sesión --%>
     <%
         Cliente c = (Cliente) session.getAttribute("cliente");
@@ -100,12 +99,17 @@
                     <td><%= cuota.getFechaVencimiento() %></td>
                     <td>S/ <%= cuota.getMonto() %></td>
                     <td><span class="badge"><%= cuota.getEstado() %></span></td>
-                    <td>
-                        <form action="PagarCuotaServlet" method="POST">
-                            <input type="hidden" name="idCuota" value="<%= cuota.getIdCuota() %>">
-                            <button type="submit" class="btn-accion btn-verde" style="margin:0; padding: 5px 15px;">Pagar</button>
-                        </form>
-                    </td>
+                        <td>
+                            <form action="PagarCuotaServlet" method="POST">
+                                <input type="hidden" name="idCuota" value="<%= cuota.getIdCuota() %>">
+
+                                <input type="hidden" name="monto" value="<%= cuota.getMonto() %>">
+
+                                <button type="submit" class="btn-accion btn-verde" style="margin:0; padding: 5px 15px;">
+                                    Pagar
+                                </button>
+                            </form>
+                        </td>
                 </tr>
             <% } } %>
         </tbody>

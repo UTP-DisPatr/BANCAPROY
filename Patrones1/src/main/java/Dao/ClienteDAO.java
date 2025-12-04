@@ -185,4 +185,46 @@ public class ClienteDAO implements IClienteDAO {
         }
         return lista;
     }
+    // ====================================================================
+    //  Logica para pagar la cuota de deuda
+    // ====================================================================
+    @Override
+    public boolean pagarCuota(int idCliente, int idCuota, double monto) {
+    boolean exito = false;
+    // 1. Verificar saldo suficiente
+    double saldoActual = obtenerSaldo(idCliente);
+    if (saldoActual < monto) return false;
+
+    String sqlDescuento = "UPDATE cliente SET saldo = saldo - ? WHERE id_cliente = ?";
+    String sqlUpdateCuota = "UPDATE cuotas SET estado = 'PAGADO' WHERE id_cuota = ?";
+    
+    Connection con = null;
+    try {
+        con = ConexionBD.getConexion();
+        con.setAutoCommit(false); // INICIO TRANSACCIÓN
+
+        // Paso 1: Restar Saldo
+        try (PreparedStatement ps1 = con.prepareStatement(sqlDescuento)) {
+            ps1.setDouble(1, monto);
+            ps1.setInt(2, idCliente);
+            ps1.executeUpdate();
+        }
+
+        // Paso 2: Marcar cuota como Pagada
+        try (PreparedStatement ps2 = con.prepareStatement(sqlUpdateCuota)) {
+            ps2.setInt(1, idCuota);
+            ps2.executeUpdate();
+        }
+
+        con.commit(); // CONFIRMAR TRANSACCIÓN
+        exito = true;
+        
+    } catch (Exception e) {
+        try { if(con!=null) con.rollback(); } catch(SQLException ex){} // Deshacer si falla
+        System.out.println("Error al pagar: " + e.getMessage());
+    } finally {
+        try { if(con!=null) con.setAutoCommit(true); } catch(SQLException ex){}
+    }
+    return exito;
+}
 }
